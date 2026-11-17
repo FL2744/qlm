@@ -1,6 +1,6 @@
 Technical paper: [PDF](qlm.pdf) · [LaTeX](qlm.tex) · [Markdown](qlm.md) · [Source bundle](Source.zip)
 
-# qlm: A Native Document Editor for Writing and Small Web Pages
+# qlm: AI-Assisted Writing and Multilingual Translation in a Native macOS Editor
 
 William Taggart · Modern and Classical Languages and Literatures, Virginia Tech
 

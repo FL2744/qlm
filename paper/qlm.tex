@@ -23,7 +23,7 @@
 
 \usepackage{tabularx}
 \settopmatter{printfolios=true}
-\title{qlm: A Native Document Editor for Writing and Small Web Pages}
+\title{qlm: AI-Assisted Writing and Multilingual Translation in a Native macOS Editor}
 \author{William Taggart}
 \affiliation{\institution{Modern and Classical Languages and Literatures, Virginia Tech}\city{Blacksburg}\state{Virginia}\country{USA}}
 \email{wtaggart@vt.edu}
@@ -32,14 +32,14 @@
 \begin{document}
 \begin{abstract}
 
-qlm is a native macOS editor that treats plain writing and small web pages as related document activities. It opens directly into a text workspace, supports native attributed documents, and combines editable rendered HTML with a source view whose embedded image data can be abbreviated without changing the saved file. Nonstandard fonts can be embedded for portable HTML display. Optional rewrite and translation commands act on an explicit selection and insert alternatives below the original. This report describes the 0.1 implementation, its AppKit and WebKit editing paths, serialization and persistence mechanisms, failure handling, and release checks. The design emphasizes local files, a small visible interface, and deliberate access to remote language models. Regression tests and synthetic demonstrations establish specific implementation behaviors; they do not establish usability, translation quality, arbitrary web-page fidelity, or performance for large datasets.
+qlm is a native macOS writing environment that integrates large-language-model rewriting and multilingual translation into an ordinary local document. Its central AI interaction is explicit and comparative: the writer selects a passage, invokes a configurable model, and receives an alternative beneath the preserved original. Command-R applies saved rewriting instructions; Command-T offers 24 default target languages and a user-defined alternative. Provider-configurable HTTPS APIs separate the writing interface from any single model service, while asynchronous requests, snapshot checks, cancellation, and undo govern how generated text enters the document. The same workspace supports multilingual native text, attributed documents, editable rendered HTML, and portable pages with embedded images and supported fonts. This report explains how AI assistance is coordinated with document state, persistence, and direct editing in release 0.1. Regression checks verify request construction, response handling, insertion, and file behavior; they do not establish linguistic quality or comparative user benefit.
 \end{abstract}
 \maketitle
 \noindent\textit{Technical report. Software release 0.1. November 17, 2026.}
 
 \section{Purpose and Research Context}
 
-Writing and publishing a small page should not require adopting a software project. qlm is intended for people who move between prose, notes, multilingual passages, and modest HTML pages: teachers, researchers, writers, and maintainers of personal or departmental sites. A new document begins as plain text. Formatting, pictures, source inspection, and optional language-model assistance are available when needed. The name is a compact transliteration of qalam, Arabic for pen; its lowercase wordmark reflects the intended scale of the tool.
+qlm brings AI rewriting and multilingual translation into the place where a writer is already composing and revising. Its intended users move between prose, notes, multilingual passages, and modest HTML pages: teachers, researchers, writers, and maintainers of personal or departmental sites. They can ask a model to transform a selected passage without copying the document into a separate chat, then compare the result with the original in the same workspace. Ordinary writing remains local and requires no API account. The name is a compact transliteration of qalam, Arabic for pen; its lowercase wordmark reflects the intended scale of the tool.
 
 Engelbart's account of intellectual augmentation places tools within a larger practice of thinking and working \cite{engelbart}. qlm adopts a narrow version of that ambition: reduce the distance between composing words and maintaining the file that contains them. Shneiderman's description of direct manipulation emphasizes visible objects, incremental action, and reversibility \cite{shneiderman}. These ideas motivate the document-centered interface and undoable insertion of generated alternatives. They provide design context rather than evidence that this particular editor improves writing.
 
@@ -47,7 +47,21 @@ The first WorldWideWeb client combined browsing with editing, as Berners-Lee's h
 
 Local-first research argues for ownership, offline access, and durable user control while also considering collaboration \cite{localfirst}. qlm implements local document storage and network-independent ordinary writing; it does not implement conflict-free replication, multi-user editing, or device synchronization. Its files can be kept, copied, and published independently of an account. HTML embeds and optional model requests remain network operations. This boundary matters because a local HTML file may still reference a remote video, stylesheet, or script.
 
-CoAuthor studies how writers request, accept, dismiss, and edit model suggestions \cite{coauthor}. Wordcraft explores several explicitly invoked writing tasks, including rewriting and custom requests \cite{wordcraft}. Those systems establish interaction design as a substantive part of assisted writing. qlm uses a smaller interaction: select a passage, request a rewrite or translation, and receive a new passage beneath the original. It has no model training pipeline, automatic continuation, or quality estimator. Preserving the source makes comparison possible, but the value of that comparison has not been evaluated in a controlled study.
+CoAuthor studies how writers request, accept, dismiss, and edit model suggestions \cite{coauthor}. Wordcraft explores explicitly invoked writing tasks, including rewriting and custom requests \cite{wordcraft}. Both make the interaction around generation central to assisted writing. qlm develops that concern through selection-based transformation: the writer chooses the source, controls the instruction or target language, and retains the returned text as an editable alternative. Its particular contribution is the integration of these operations with local document state and a native editing workflow. It uses existing remote models rather than training a model or estimating the quality of its outputs. The interface supports comparison and further revision; whether those affordances improve writing requires separate evaluation.
+
+\section{AI as an Explicit Writing Operation}
+
+AI assistance in qlm is organized around a passage rather than a conversation history. The selected text defines the material sent to the provider, and the configured instruction defines the requested transformation. This keeps the scope of a model operation visible to the writer: a sentence, paragraph, or longer selection can be rewritten while the surrounding document remains in place. The application supplies the interaction and document handling; language generation runs at the configured remote endpoint. There is no bundled language model, local inference engine, or implicit request triggered by typing.
+
+Rewriting is a reusable operation whose behavior is specified in Settings. Command-R submits the current selection with the saved rewrite instruction. A writer can configure that instruction for recurring revision goals, such as clearer exposition or a different register, and then invoke the same operation across passages. These are prompt configurations rather than built-in revision modes. qlm neither checks whether the response obeyed the instruction nor verifies facts introduced by a model. The returned passage is material for the writer to assess.
+
+Translation uses the same selection-based workflow with a more structured instruction. Command-T asks for target languages, drawing from 24 alphabetized defaults and an Other field. The client requests preservation of meaning, tone, paragraph structure, and formatting, and asks the model to return only the translation. Multiple targets produce successive responses separated by blank lines below the source. Because qlm does not add language headings, attribution relies on the selected target order and the writer's inspection. Language coverage depends on the chosen model.
+
+The decision to append an alternative is central to the AI workflow. A response does not overwrite the selected source. Both remain available for comparison, copying, revision, or deletion, and a single undo removes the generated insertion. This makes the consequence of the model operation inspectable within the document itself. It also means repeated requests increase document length and require editorial decisions about which version to retain.
+
+Provider configuration makes AI assistance portable at the API boundary. Users choose an endpoint, request format, model, key, and rewrite instruction, with presets for OpenAI Responses and Virginia Tech ARC Chat Completions. The client adapts the request and response envelope while keeping the editing interaction consistent. Changing providers can change cost, latency, retention, available languages, and output quality; compatible request syntax does not imply equivalent model behavior.
+
+Asynchronous generation creates a coordination problem that a standalone model call does not solve: the writer may edit while waiting. qlm captures the source selection and a snapshot of the native text before issuing a request. On completion, it inserts only if the text still matches; otherwise, a copy-result dialog preserves the response for manual placement. Cancellation and document-close handling bound the lifetime of the request. These mechanisms connect AI output to its originating document state.
 
 \section{The Writing Surface}
 
@@ -193,7 +207,7 @@ No controlled comparison measures learning time, writing quality, translation ac
 
 \section{Conclusion}
 
-qlm 0.1 makes a local document the common starting point for plain writing and small HTML pages. Its main technical boundary is between native attributed text, source projection, and browser-managed editable markup. Explicit synchronization, preserved original passages, and transparent persistence rules support that boundary, while resource limits and format-specific export behavior constrain its scope. The result is a focused tool for authoring files directly, with optional model assistance and a source view available when the document's structure matters.
+qlm 0.1 places AI rewriting and multilingual translation inside a local document workflow. Explicit selections, configurable instructions and providers, preserved originals, asynchronous state checks, and undo define how model output becomes editable writing. Native text and HTML authoring extend that workflow from drafting and cross-language revision to maintaining small pages. The technical contribution lies in coordinating these surfaces and operations while making their persistence and network boundaries clear. The implementation offers a concrete platform for studying deliberate AI assistance; linguistic quality and user benefit remain questions for empirical evaluation.
 
 \section{AI Disclosure}
 
@@ -210,7 +224,8 @@ Codex assisted with the development and revision of the software, including impl
 \bibitem{nsdocument} Apple. 2026. NSDocument. AppKit documentation; accessed November 17, 2026. \url{https://developer.apple.com/documentation/appkit/nsdocument}.
 \bibitem{bidi} Unicode Consortium. 2026. Unicode Bidirectional Algorithm. Unicode Standard Annex 9, revision 52, Unicode 18.0.0, September 1. \url{https://www.unicode.org/reports/tr9/tr9-52.html}.
 \bibitem{html} WHATWG. 2026. HTML Living Standard: User Interaction and Editing. November 16 snapshot; accessed November 17, 2026. \url{https://html.spec.whatwg.org/multipage/interaction.html#contenteditable}.
+\enlargethispage{4\baselineskip}
 \end{thebibliography}
 \section*{Suggested Citation}
-William Taggart. 2026. qlm: A Native Document Editor for Writing and Small Web Pages. Technical report. Modern and Classical Languages and Literatures, Virginia Tech. \url{https://github.com/FL2744/qlm}
+William Taggart. 2026. qlm: AI-Assisted Writing and Multilingual Translation in a Native macOS Editor. Technical report. Modern and Classical Languages and Literatures, Virginia Tech. \url{https://github.com/FL2744/qlm}
 \end{document}
