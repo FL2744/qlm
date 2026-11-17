@@ -4,9 +4,9 @@
   "os": "26.6.2",
   "architecture": "arm64",
   "build": "Swift 5 language mode; macOS 15 deployment target; arm64 + x86_64",
-  "tests": "Full --self-test passed before Developer ID signing",
+  "tests": "Full --self-test passed, including a 5,000-line compiler-log error presentation regression",
   "notarization": {
-    "id": "cc0553c8-2332-4289-aa4e-736b3537bfb4",
+    "id": "f98914d5-7189-494a-bbff-4b07fc102424",
     "status": "Accepted"
   },
   "distribution_checks": [
@@ -15,5 +15,8 @@
     "spctl accepted: Notarized Developer ID"
   ],
   "runtime_limits": "Intel and macOS 15 not runtime-tested; no arbitrary HTML fidelity, AI quality, accessibility, or large-file benchmark claims",
-  "screenshots": "Isolated bundle com.willtaggart.qlm.paper-preview from release 0.1; synthetic fixtures in examples; see paper/FIGURES.json"
+  "screenshots": "Isolated bundle com.willtaggart.qlm.paper-preview from release 0.1; synthetic fixtures in examples; see paper/FIGURES.json",
+  "bundle_build": "2",
+  "source_commit": "7da838d692de033c94c682dc8597fcd680bdb8c7",
+  "archive_sha256": "f2d567cb0eba457624cb9b0d08a60a4a55950c85699c43ccb54f9b32cc7206d7"
 }
