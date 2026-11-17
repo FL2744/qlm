@@ -65,7 +65,7 @@ Requests are explicit and send selected text and instructions. The client uses a
 ## Export
 
 - **PDF:** native text/attributed documents print as paginated, white-background US Letter pages. Markdown prints as source. The full-page HTML editing surface does not have a dedicated rendered-PDF export path in 0.1; its native export can contain source rather than the rendered page.
-- **LaTeX PDF:** PDF export from a TEX document invokes a local **Tectonic** installation with shell escape disabled. Install it separately with `brew install tectonic`. A complete LaTeX document is required. Relative inputs resolve from its saved folder. Missing packages may require a network download. Compiler errors preserve an existing output PDF.
+- **LaTeX PDF:** PDF export from a TEX document invokes a local **Tectonic** installation with shell escape disabled. Install it separately with `brew install tectonic`. A complete LaTeX document is required. Relative inputs resolve from its saved folder. Missing packages may require a network download. Compiler errors preserve an existing output PDF and appear in a compact dialog with a scrollable, copyable compiler log. Keep relative images and other dependencies alongside the saved TEX file; for the technical report, extract the complete [source bundle](paper/Source.zip) before compiling.
 - **PNG / JPG / TIFF:** captures the visible native app window, including the header; offscreen text is excluded. WebKit compositing and interactive embeds may not appear completely in native window captures.
 
 RTF/DOCX import and export use Apple's attributed-text converters; qlm is not a complete Word layout engine. Complex tables, tracked changes, headers, and footnotes may lose structure.

@@ -20,6 +20,13 @@ func runSelfTests() throws {
     try check(Date().timeIntervalSince(start) < 10, "Large JSON opens without full-document layout")
     try check(try large.data(ofType: Format.json.type) == Data(largeSource.utf8), "Large JSON remains complete and unchanged")
     large.editor?.close()
+    let hugeLog = String(repeating: "warning: verbose compiler diagnostic\n", count: 5000) + "error: texput.tex:72: Unable to load picture or PDF file 'figures/missing.png'"
+    let compilerError = LaTeXExporter.compilationError(hugeLog)
+    try check((compilerError.localizedRecoverySuggestion ?? "").count < 1000 && (compilerError.localizedRecoverySuggestion ?? "").contains("figures/missing.png"), "Compiler summary stays short and identifies the error")
+    let compilerAlert = LaTeXErrorPresentation.alert(for: compilerError)
+    try check(compilerAlert.buttons.first?.title == "OK" && compilerAlert.buttons.first?.keyEquivalent == "\r", "Compiler error always has a default dismissal button")
+    try check((compilerAlert.accessoryView as? NSScrollView)?.documentView is NSTextView && (compilerAlert.accessoryView?.frame.height ?? 1000) <= 220, "Large compiler log uses a bounded scroll view")
+    try check((compilerError.userInfo[LaTeXExporter.transcriptKey] as? String) == hugeLog, "Complete compiler log retained for copying")
     let sample = "qlm\nمرحباً بالعالم\nA ‘quiet’ tool — 𝄞\r\n"
     for encoding in [String.Encoding.utf8, .utf16LittleEndian, .utf16BigEndian] {
         var codec = PlainCodec(); codec.encoding = encoding

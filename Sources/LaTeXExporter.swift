@@ -9,6 +9,13 @@ enum LaTeXExporter {
     static func error(_ message: String, detail: String = "") -> NSError {
         NSError(domain: "qlm.LaTeX", code: 1, userInfo: [NSLocalizedDescriptionKey: message, NSLocalizedRecoverySuggestionErrorKey: detail])
     }
+    static let transcriptKey = "QLMCompilerTranscript"
+    static func compilationError(_ transcript: String) -> NSError {
+        let firstError = transcript.components(separatedBy: .newlines).first { $0.hasPrefix("error:") }
+        let summary = String((firstError ?? "The compiler stopped before producing a PDF.").prefix(500))
+        let recovery = summary + "\n\nCheck that images and other referenced files are beside the saved .tex file in the expected folders. Full details are available in the compiler log below."
+        return NSError(domain: "qlm.LaTeX", code: 1, userInfo: [NSLocalizedDescriptionKey: "LaTeX could not be typeset.", NSLocalizedRecoverySuggestionErrorKey: recovery, transcriptKey: transcript])
+    }
     static func compile(source: String, directory: URL?, to destination: URL, timeout: TimeInterval = 120) throws {
         guard let executable else {
             throw error("LaTeX PDF export needs Tectonic.", detail: "Install Tectonic with Homebrew (brew install tectonic), then export again.")
@@ -41,11 +48,11 @@ enum LaTeXExporter {
         deadline.cancel()
         let transcript = (try? String(contentsOf: log, encoding: .utf8)) ?? ""
         guard process.terminationReason == .exit, process.terminationStatus == 0 else {
-            throw error("LaTeX could not be typeset.", detail: String(transcript.suffix(6000)) + "\nCheck the reported source line. Tectonic may need internet access to download missing TeX packages.")
+            throw compilationError(transcript)
         }
         let pdf = staging.appendingPathComponent("texput.pdf")
         guard let bytes = try? Data(contentsOf: pdf), bytes.starts(with: Array("%PDF-".utf8)) else {
-            throw error("The LaTeX compiler did not produce a PDF.", detail: String(transcript.suffix(6000)))
+            throw compilationError(transcript)
         }
         try bytes.write(to: destination, options: .atomic)
     }

@@ -368,7 +368,7 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
                 DispatchQueue.main.async {
                     self.exportingLaTeX = false
                     self.updateStatus()
-                    if case .failure(let error) = result { window.presentError(error) }
+                    if case .failure(let error) = result { LaTeXErrorPresentation.present(error as NSError) }
                 }
             }
             return
