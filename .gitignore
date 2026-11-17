@@ -1,0 +1,16 @@
+build/
+.build/
+.DS_Store
+Drafts/
+release-work/
+downloads/
+*.key
+*.p12
+*.p8
+.qlm-api.json
+.env*
+paper/qa/
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.blg

@@ -1,0 +1,19 @@
+{
+  "release": "0.1",
+  "date": "2026-11-17",
+  "os": "26.6.2",
+  "architecture": "arm64",
+  "build": "Swift 5 language mode; macOS 15 deployment target; arm64 + x86_64",
+  "tests": "Full --self-test passed before Developer ID signing",
+  "notarization": {
+    "id": "cc0553c8-2332-4289-aa4e-736b3537bfb4",
+    "status": "Accepted"
+  },
+  "distribution_checks": [
+    "codesign --verify --deep --strict passed",
+    "stapler staple and validate passed",
+    "spctl accepted: Notarized Developer ID"
+  ],
+  "runtime_limits": "Intel and macOS 15 not runtime-tested; no arbitrary HTML fidelity, AI quality, accessibility, or large-file benchmark claims",
+  "screenshots": "Isolated bundle com.willtaggart.qlm.paper-preview from release 0.1; synthetic fixtures in examples; see paper/FIGURES.json"
+}

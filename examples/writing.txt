@@ -1,0 +1,12 @@
+A small space for words
+
+A page can begin with a sentence, a picture, or a question. qlm keeps the document close at hand: open a file, write, and save.
+
+English and Arabic can share the same document.
+الكتابة مساحة للتفكير والتجربة.
+
+A note for the web
+
+The document is the starting point. Add an image to make HTML, or open an existing page and edit its rendered text. Switch to source whenever the markup matters.
+
+Rewriting and translation are deliberate actions. Select a passage, ask for a change, and compare the result with the original.

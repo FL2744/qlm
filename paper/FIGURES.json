@@ -1,0 +1,77 @@
+[
+  {
+    "figure": "01-workspace.png",
+    "origin": "CUA live capture of isolated qlm 0.1 Paper Preview, synthetic examples; 2026-11-17",
+    "original_size": [
+      1860,
+      1464
+    ],
+    "crop": [
+      0,
+      64,
+      1860,
+      660
+    ],
+    "edits": "rectangular crop only"
+  },
+  {
+    "figure": "02-rendered-html.png",
+    "origin": "CUA live capture of isolated qlm 0.1 Paper Preview, synthetic examples; 2026-11-17",
+    "original_size": [
+      1860,
+      1464
+    ],
+    "crop": [
+      0,
+      64,
+      1860,
+      1160
+    ],
+    "edits": "rectangular crop only"
+  },
+  {
+    "figure": "03-html-source.png",
+    "origin": "CUA live capture of isolated qlm 0.1 Paper Preview, synthetic examples; 2026-11-17",
+    "original_size": [
+      1860,
+      1464
+    ],
+    "crop": [
+      0,
+      64,
+      1860,
+      700
+    ],
+    "edits": "rectangular crop only"
+  },
+  {
+    "figure": "04-fonts.png",
+    "origin": "CUA live capture of isolated qlm 0.1 Paper Preview, synthetic examples; 2026-11-17",
+    "original_size": [
+      920,
+      778
+    ],
+    "crop": [
+      0,
+      0,
+      920,
+      690
+    ],
+    "edits": "rectangular crop only"
+  },
+  {
+    "figure": "05-translation.png",
+    "origin": "CUA live capture of isolated qlm 0.1 Paper Preview, synthetic examples; 2026-11-17",
+    "original_size": [
+      1024,
+      1108
+    ],
+    "crop": [
+      28,
+      28,
+      1000,
+      1088
+    ],
+    "edits": "rectangular crop only"
+  }
+]
