@@ -1,13 +1,14 @@
 {
-  "release": "0.1",
-  "date": "2026-11-17",
+  "release": "0.2",
+  "date": "2026-11-18",
   "os": "26.6.2",
   "architecture": "arm64",
   "build": "Swift 5 language mode; macOS 15 deployment target; arm64 + x86_64",
-  "tests": "Full --self-test passed, including a 5,000-line compiler-log error presentation regression",
+  "tests": "Full --self-test passed, including Letter pagination, long-line wrapping, selected hyperlinks, HTML persistence and undo, and mixed slide clipboard text",
   "notarization": {
-    "id": "f98914d5-7189-494a-bbff-4b07fc102424",
-    "status": "Accepted"
+    "id": "df472b74-ca78-43c2-833c-ad0a4a36358f",
+    "status": "Accepted",
+    "message": "Processing complete"
   },
   "distribution_checks": [
     "codesign --verify --deep --strict passed",
@@ -15,8 +16,12 @@
     "spctl accepted: Notarized Developer ID"
   ],
   "runtime_limits": "Intel and macOS 15 not runtime-tested; no arbitrary HTML fidelity, AI quality, accessibility, or large-file benchmark claims",
-  "screenshots": "Isolated bundle com.willtaggart.qlm.paper-preview from release 0.1; synthetic fixtures in examples; see paper/FIGURES.json",
-  "bundle_build": "2",
-  "source_commit": "7da838d692de033c94c682dc8597fcd680bdb8c7",
-  "archive_sha256": "f2d567cb0eba457624cb9b0d08a60a4a55950c85699c43ccb54f9b32cc7206d7"
+  "screenshots": "Unchanged interface surfaces captured in isolated release 0.1; see paper/FIGURES.json",
+  "bundle_build": "3",
+  "source_commit": "8cf89fd17fffda3f6d419173938c992c70861112",
+  "archive_sha256": "b28c79d4b5bae7c9544b86c4b0ea502aa18a8b255e7dd3fea079bdf866e6219c",
+  "manual_checks": [
+    "Command-P opened a two-page native print dialog; Cancel preserved text; no hardware print job submitted",
+    "Command-H opened link dialog; Enter applied the destination to selected words"
+  ]
 }
