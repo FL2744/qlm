@@ -38,11 +38,19 @@ extension EditorController {
         guard !languages.isEmpty else { window?.presentError(aiError("Choose at least one target language.")); return }
         runTextAction(selection: selection, config: AIConfiguration(), languages: languages)
     }
+    static func editablePassage(_ value: String) -> String? {
+        let words = value.replacingOccurrences(of: "\u{FFFC}", with: "")
+        return words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : words
+    }
     func selectedPassage() -> (range: NSRange, value: String, snapshot: String)? {
         guard aiTask == nil else { return nil }
         let range = text.selectedRange()
         guard range.length > 0, NSMaxRange(range) <= (text.string as NSString).length else { window?.presentError(aiError("Select the text you want to rewrite or translate first.")); return nil }
-        return (range, (text.string as NSString).substring(with: range), text.string)
+        guard let words = Self.editablePassage((text.string as NSString).substring(with: range)) else {
+            window?.presentError(aiError("This selection contains an image or blank space, not editable text. Copy the words from inside the slide’s text box, then paste them into qlm."))
+            return nil
+        }
+        return (range, words, text.string)
     }
     func runTextAction(selection: (range: NSRange, value: String, snapshot: String), config: AIConfiguration, languages: [String]) {
         let key: String

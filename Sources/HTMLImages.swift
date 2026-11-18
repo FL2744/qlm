@@ -68,7 +68,9 @@ enum HTMLImages {
                 let traits = NSFontManager.shared.traits(of: font)
                 let decoration = ";color:" + hex + ";text-decoration:" + (underline ? "underline" : "none") + ";font-weight:" + (traits.contains(.boldFontMask) ? "700" : "400") + ";font-style:" + (traits.contains(.italicFontMask) ? "italic" : "normal")
                 let style = "font-family:" + HTMLFonts.cssString(family) + ",sans-serif;font-size:\(font.pointSize)pt" + decoration
-                body += "<span data-qlm-font=\"\(escaped(font.fontName))\" data-qlm-size=\"\(font.pointSize)\" data-qlm-color=\"\(hex)\" data-qlm-underline=\"\(underline ? "1" : "0")\" style=\"\(escaped(style))\">" + escaped(value.attributedSubstring(from: range).string) + "</span>"
+                let link = (attributes[.link] as? URL)?.absoluteString ?? attributes[.link] as? String ?? ""
+                let span = "<span data-qlm-font=\"\(escaped(font.fontName))\" data-qlm-link=\"\(escaped(link))\" data-qlm-size=\"\(font.pointSize)\" data-qlm-color=\"\(hex)\" data-qlm-underline=\"\(underline ? "1" : "0")\" style=\"\(escaped(style))\">" + escaped(value.attributedSubstring(from: range).string) + "</span>"
+                body += link.isEmpty ? span : "<a href=\"\(escaped(link))\">" + span + "</a>"
             }
         }
         if let failure { throw failure }
@@ -110,6 +112,7 @@ private final class EmbeddedHTMLReader: NSObject, XMLParserDelegate {
         }
         if inside, name == "span", let fontName = attributes["data-qlm-font"] {
             currentAttributes = [:]
+            if let link = attributes["data-qlm-link"], !link.isEmpty, let url = URL(string: link) { currentAttributes[.link] = url }
             currentAttributes[.font] = NSFont(name: fontName, size: CGFloat(min(1000, max(1, Double(attributes["data-qlm-size"] ?? "12") ?? 12))))
             if let hex = attributes["data-qlm-color"], hex.count == 7, hex.hasPrefix("#"), let rgb = UInt32(hex.dropFirst(), radix: 16) {
                 currentAttributes[.foregroundColor] = NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1)

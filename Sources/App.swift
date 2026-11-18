@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item(app, "About qlm", #selector(about(_:)))
         item(app, "Settings…", #selector(openSettings(_:)), ",")
         app.addItem(.separator())
-        item(app, "Hide qlm", #selector(NSApplication.hide(_:)), "h")
+        item(app, "Hide qlm", #selector(NSApplication.hide(_:)), "h", [.command, .control])
         item(app, "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option])
         item(app, "Show All", #selector(NSApplication.unhideAllApplications(_:)))
         app.addItem(.separator()); item(app, "Quit qlm", #selector(NSApplication.terminate(_:)), "q")
@@ -53,6 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for (title, ext) in [("PDF…", "pdf"), ("Window as PNG…", "png"), ("Window as JPG…", "jpg"), ("Window as TIFF…", "tiff")] {
             let i = NSMenuItem(title: title, action: #selector(EditorController.exportDocument(_:)), keyEquivalent: ""); i.representedObject = ext; export.addItem(i)
         }
+        file.addItem(.separator())
+        item(file, "Print…", #selector(EditorController.printCurrentDocument(_:)), "p")
         let edit = menu("Edit")
         item(edit, "Undo", Selector(("undo:")), "z"); item(edit, "Redo", Selector(("redo:")), "z", [.command, .shift]); edit.addItem(.separator())
         item(edit, "Cut", #selector(NSText.cut(_:)), "x"); item(edit, "Copy", #selector(NSText.copy(_:)), "c"); item(edit, "Paste", #selector(NSText.paste(_:)), "v")
@@ -66,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item(edit, "Translate Selection…", #selector(EditorController.translateSelection(_:)), "t")
         item(edit, "Cancel API Request", #selector(EditorController.cancelTextAction(_:)))
         let insert = menu("Insert")
+        item(insert, "Link…", #selector(EditorController.insertHyperlink(_:)), "h")
         item(insert, "Image…", #selector(EditorController.insertImage(_:)), "i", [.command, .shift])
         item(insert, "HTML Embed…", #selector(EditorController.insertHTMLEmbed(_:)))
         let format = menu("Format")

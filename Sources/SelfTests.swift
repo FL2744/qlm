@@ -27,6 +27,25 @@ func runSelfTests() throws {
     try check(compilerAlert.buttons.first?.title == "OK" && compilerAlert.buttons.first?.keyEquivalent == "\r", "Compiler error always has a default dismissal button")
     try check((compilerAlert.accessoryView as? NSScrollView)?.documentView is NSTextView && (compilerAlert.accessoryView?.frame.height ?? 1000) <= 220, "Large compiler log uses a bounded scroll view")
     try check((compilerError.userInfo[LaTeXExporter.transcriptKey] as? String) == hugeLog, "Complete compiler log retained for copying")
+    let slideSentence = "Most of the projects in this slide deck have technical reports created about them, you can find them at: github.com/fl274https://github.com/FL2744/Technical-Papers/4/"
+    let slidePasteboard = NSPasteboard.withUniqueName()
+    defer { slidePasteboard.releaseGlobally() }
+    slidePasteboard.setData(try Data(contentsOf: Bundle.main.url(forResource: "Favicon", withExtension: "png")!), forType: .png)
+    slidePasteboard.setString(slideSentence, forType: .string)
+    try check(WritingView.clipboardTextOverImage(slidePasteboard) == slideSentence, "Slide text wins over its image representation")
+    let slideDoc = QLMDocument(); slideDoc.fileType = Format.txt.type; slideDoc.makeWindowControllers()
+    let slideEditor = slideDoc.editor!
+    try check(slideEditor.text.readSelection(from: slidePasteboard, type: .png), "Mixed slide clipboard can be pasted")
+    try check(slideEditor.text.string == slideSentence && !HTMLImages.containsImages(slideEditor.documentContent()), "Slide paste remains editable text")
+    slideEditor.text.setSelectedRange(NSRange(location: 0, length: (slideSentence as NSString).length))
+    try check(slideEditor.selectedPassage()?.value == slideSentence, "AI reads pasted slide text")
+    slideEditor.applyFontAttributes([.foregroundColor: NSColor.red])
+    try check(slideEditor.documentContent().attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor == .red, "Pasted slide text can be recolored")
+    try check(EditorController.editablePassage("\u{FFFC}\n\n") == nil, "Image-only AI selections are rejected before a request")
+    slidePasteboard.clearContents()
+    slidePasteboard.setData(try Data(contentsOf: Bundle.main.url(forResource: "Favicon", withExtension: "png")!), forType: .png)
+    try check(WritingView.clipboardTextOverImage(slidePasteboard) == nil, "Image-only paste remains an image")
+    slideDoc.updateChangeCount(.changeCleared); slideEditor.close()
     let sample = "qlm\nمرحباً بالعالم\nA ‘quiet’ tool — 𝄞\r\n"
     for encoding in [String.Encoding.utf8, .utf16LittleEndian, .utf16BigEndian] {
         var codec = PlainCodec(); codec.encoding = encoding
@@ -112,6 +131,7 @@ func runSelfTests() throws {
     try runHTMLAppearanceTests()
     try runHTMLSourceTests()
     try runFontPickerTests()
+    try runHyperlinkTests()
     try runHTMLEmbedTests()
     try runImageTests()
     try runAITests(editor: editor)
@@ -125,6 +145,20 @@ func runSelfTests() throws {
     let pdf = try Data(contentsOf: output)
     try check(pdf.starts(with: Array("%PDF".utf8)), "PDF export")
     try check((PDFDocument(url: output)?.pageCount ?? 0) >= 3, "PDF must include offscreen text over multiple pages")
+    let printed = PDFDocument(url: output)!
+    try check(printed.page(at: 0)?.bounds(for: .mediaBox).size == NSSize(width: 612, height: 792), "Print PDF defaults to US Letter")
+    try check(printed.string?.contains("120") == true, "Print PDF includes the last offscreen line")
+    let printOperation = try DocumentPrinting.operation(for: printed, title: "Print test")
+    try check(printOperation.showsPrintPanel && printOperation.jobTitle == "Print test", "Printing offers the native dialog without submitting a job in tests")
+    let printItem = NSApp.mainMenu?.item(withTitle: "File")?.submenu?.items.first { $0.action == #selector(EditorController.printCurrentDocument(_:)) }
+    try check(printItem?.keyEquivalent == "p", "Print is available with Command-P")
+    let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byClipping
+    let unwrapped = String(repeating: "LongWord", count: 1000) + " FINALPRINTMARKER"
+    editor.text.textStorage?.setAttributedString(NSAttributedString(string: unwrapped, attributes: [.font: NSFont.systemFont(ofSize: 12), .paragraphStyle: paragraph]))
+    try editor.exportPDF(to: output)
+    let wrapped = PDFDocument(url: output)!
+    try check(wrapped.pageCount > 1 && wrapped.string?.filter { !$0.isWhitespace }.contains("FINALPRINTMARKER") == true, "Print wraps long lines even when imported paragraphs disable wrapping")
+    try check((editor.documentContent().attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)?.lineBreakMode == .byClipping, "Print layout does not change the document")
     try check(Format.from(URL(fileURLWithPath: "notes.md")) == .md, "Markdown extension detection")
     try check(UTTypeFor(.md).preferredFilenameExtension == "md", "Markdown file dialog registration")
     let directory = output.deletingLastPathComponent().appendingPathComponent("latex-fixture")

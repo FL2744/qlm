@@ -34,13 +34,37 @@ final class WritingView: NSTextView {
     var pasteHTML: ((NSPasteboard) -> Bool)?
     var pasteImages: ((NSPasteboard) -> Bool)?
     override var readablePasteboardTypes: [NSPasteboard.PasteboardType] { [.png, .tiff, .fileURL] + super.readablePasteboardTypes }
+    static func clipboardTextOverImage(_ pasteboard: NSPasteboard) -> String? {
+        guard HTMLImages.hasImages(pasteboard), HTMLImages.fileImages(pasteboard).isEmpty else { return nil }
+        var value = pasteboard.string(forType: .string)
+        if value == nil {
+            for (type, format) in [(NSPasteboard.PasteboardType.rtf, NSAttributedString.DocumentType.rtf), (.html, .html)] {
+                if let bytes = pasteboard.data(forType: type), let imported = try? NSAttributedString(data: bytes, options: [.documentType: format], documentAttributes: nil) {
+                    value = imported.string; break
+                }
+            }
+        }
+        guard let source = value else { return nil }
+        let words = source.replacingOccurrences(of: "\u{FFFC}", with: "")
+        let trimmed = words.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        // Image copies can carry their source URL; image file copies remain images.
+        if !trimmed.contains(where: { $0.isWhitespace }), let url = URL(string: trimmed), ["http", "https", "file", "data"].contains(url.scheme?.lowercased() ?? "") { return nil }
+        return words
+    }
     override func paste(_ sender: Any?) {
         if pasteHTML?(NSPasteboard.general) == true { return }
+        if let words = Self.clipboardTextOverImage(NSPasteboard.general) {
+            insertText(words, replacementRange: selectedRange()); return
+        }
         if pasteImages?(NSPasteboard.general) == true { return }
         super.paste(sender)
     }
     override func readSelection(from pasteboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
         if pasteHTML?(pasteboard) == true { return true }
+        if let words = Self.clipboardTextOverImage(pasteboard) {
+            insertText(words, replacementRange: selectedRange()); return true
+        }
         if pasteImages?(pasteboard) == true { return true }
         return super.readSelection(from: pasteboard, type: type)
     }
@@ -396,6 +420,12 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
         let copy = NSTextView(frame: NSRect(x: 0, y: 0, width: 504, height: 720))
         let value = NSMutableAttributedString(attributedString: documentContent())
         value.addAttribute(.foregroundColor, value: NSColor.black, range: NSRange(location: 0, length: value.length))
+        // Imported paragraphs may explicitly disable wrapping. Printing always wraps.
+        value.enumerateAttribute(.paragraphStyle, in: NSRange(location: 0, length: value.length)) { style, range, _ in
+            let paragraph = (style as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+            paragraph.lineBreakMode = .byWordWrapping
+            value.addAttribute(.paragraphStyle, value: paragraph, range: range)
+        }
         copy.textStorage?.setAttributedString(value)
         copy.textContainerInset = .zero
         copy.isHorizontallyResizable = false; copy.isVerticallyResizable = true
@@ -403,11 +433,7 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
         copy.textContainer?.widthTracksTextView = true
         copy.backgroundColor = .white; copy.textColor = .black
         copy.sizeToFit()
-        let info = NSPrintInfo()
-        info.paperSize = NSSize(width: 612, height: 792)
-        info.topMargin = 36; info.bottomMargin = 36; info.leftMargin = 54; info.rightMargin = 54
-        info.isHorizontallyCentered = false; info.isVerticallyCentered = false
-        info.horizontalPagination = .fit; info.verticalPagination = .automatic
+        let info = DocumentPrinting.letterInfo()
         info.jobDisposition = .save
         info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = url
         let operation = NSPrintOperation(view: copy, printInfo: info)
@@ -422,7 +448,7 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
 
         if menuItem.action == #selector(cancelTextAction(_:)) { return aiTask != nil }
         if menuItem.action == #selector(rewriteSelection(_:)) || menuItem.action == #selector(translateSelection(_:)) { return !scroll.isHidden && !aiBusy && text.selectedRange().length > 0 }
-        if menuItem.action == #selector(exportDocument(_:)), exportingLaTeX { return false }
+        if (menuItem.action == #selector(exportDocument(_:)) || menuItem.action == #selector(printCurrentDocument(_:))), exportingLaTeX { return false }
         if menuItem.action == #selector(toggleWrap(_:)) { menuItem.state = wrap ? .on : .off }
         return true
     }
