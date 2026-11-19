@@ -5,12 +5,14 @@ struct HTMLSourceProjection {
     let display: String
     private var images: [String: String]
     private var comments: [String]
+    private var hidesImages = true
 
-    init(_ source: String) {
+    init(_ source: String, hideImages: Bool = true) {
+        hidesImages = hideImages
         let pattern = try! NSRegularExpression(pattern: "data:image/([a-z0-9.+-]+);base64,([a-z0-9+/=\\r\\n]+)", options: [.caseInsensitive])
         let ns = source as NSString
         var output = source, stored: [String: String] = [:], descriptions: [String: String] = [:]
-        let matches = pattern.matches(in: source, range: NSRange(location: 0, length: ns.length))
+        let matches = hideImages ? pattern.matches(in: source, range: NSRange(location: 0, length: ns.length)) : []
         for (index, match) in matches.enumerated().reversed() {
             let token = "qlm-embedded://image-\(index + 1)-" + UUID().uuidString.lowercased().prefix(8)
             let original = ns.substring(with: match.range)
@@ -40,7 +42,7 @@ struct HTMLSourceProjection {
         display = output; images = stored; comments = notes
     }
     mutating func compactAdditional(_ source: String) -> String {
-        let additional = HTMLSourceProjection(source)
+        let additional = HTMLSourceProjection(source, hideImages: hidesImages)
         images.merge(additional.images) { _, new in new }
         comments.append(contentsOf: additional.comments)
         return additional.display

@@ -146,7 +146,7 @@ extension EditorController {
         do {
             let unchanged = text.string == richHTMLSource
             let source = try expandedHTMLSource()
-            let projection = Self.showImageBytes ? nil : HTMLSourceProjection(source)
+            let projection = sourceProjection(source)
             let display = projection?.display ?? source
             loading = true
             text.string = display
@@ -171,7 +171,7 @@ extension EditorController {
                     let bytes = try HTMLImages.encode(richHTMLSnapshot!, title: (doc.displayName as NSString).deletingPathExtension, dark: doc.savesDarkHTML)
                     source = String(data: bytes, encoding: .utf8)!
                 } else { source = text.string }
-                let projection = Self.showImageBytes ? nil : HTMLSourceProjection(source)
+                let projection = sourceProjection(source)
                 let display = projection?.display ?? source
                 richUndoManager = text.undoManager
                 text.sourceUndoManager = UndoManager()

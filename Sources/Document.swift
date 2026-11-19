@@ -1,6 +1,7 @@
 import AppKit
 
 @objc(QLMDocument) final class QLMDocument: NSDocument {
+    override var fileType: String? { didSet { editor?.updateDocumentType() } }
     var content = NSAttributedString(string: "")
     var codec = PlainCodec()
     var htmlRich = false

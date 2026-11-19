@@ -4,7 +4,7 @@
 
 A small space for words. A native macOS editor for writing, plain text, and pages you can edit directly.
 
-**[Download qlm 0.3](https://github.com/FL2744/qlm/releases/tag/v0.3)** · macOS 15+ · Apple silicon and Intel
+**[Download qlm 0.4](https://github.com/FL2744/qlm/releases/tag/v0.4)** · macOS 15+ · Apple silicon and Intel
 
 Technical paper: [PDF](paper/qlm.pdf) · [LaTeX](paper/qlm.tex) · [Markdown](paper/qlm.md) · [Source bundle](paper/Source.zip)
 
@@ -14,7 +14,7 @@ qlm starts with an ordinary text document. Add a picture and it becomes a self-c
 
 ## Install
 
-Download `qlm-v0.3-macOS-universal.zip` from [Releases](https://github.com/FL2744/qlm/releases/latest), unzip it, and drag `qlm.app` to Applications. The release is Developer ID signed, notarized by Apple, and stapled. Both architectures are included in one app. Optional checksums are provided with the release.
+Download `qlm-v0.4-macOS-universal.zip` from [Releases](https://github.com/FL2744/qlm/releases/latest), unzip it, and drag `qlm.app` to Applications. The release is Developer ID signed, notarized by Apple, and stapled. Both architectures are included in one app. Optional checksums are provided with the release.
 
 The app requires **macOS 15 or later**. It has been exercised on the development Mac's macOS 26; macOS 15 and Intel hardware have not been runtime-tested. There is no automatic updater or update notification system.
 
@@ -27,6 +27,7 @@ The app requires **macOS 15 or later**. It has been exercised on the development
 - **Format → Font…** changes selected text or the font for subsequent typing. Choose a Family and its installed Style, including Inter ExtraBold and Black. Size, bold, italic, underline, and text color are available; Apply works like Return.
 - TXT and source formats save text only: their font/color choices are temporary display formatting. HTML, RTF, and DOCX can retain formatting.
 - **Format → Options** contains automatic, right-to-left, and left-to-right writing direction. Arabic and mixed-direction text use the native macOS text system.
+- The black title strip shows the current document type in lowercase gray text at the upper right.
 - Matching side margins stay fixed while resizing or zooming. **View → Wrap to Page** optionally caps the writing width; otherwise it follows the window.
 - **⌘+ / ⌘− / ⌘0** zoom in, zoom out, and reset. Mouse wheel zoom can be disabled in View; Option-wheel scrolls. Trackpad scrolling and pinch zoom are supported.
 - Open Recent retains the latest 30 files. Standard save, undo, revert, find, and unsaved-document handling use AppKit's document architecture. Saves are explicit.
@@ -35,9 +36,13 @@ Files larger than **32 MiB (33,554,432 bytes)** are rejected before opening. qlm
 
 ## Work with HTML
 
+Pasting HTML source into a TXT document automatically creates an HTML draft and displays the rendered page. Use **View → HTML Source** to edit the markup. Existing text is preserved, and an existing TXT file is left on disk. Ordinary copied prose and explicitly chosen code formats remain unchanged.
+
+**Format → Options → Pretty-print Source…** opens a read-only, offline formatted preview of HTML (including embedded JS/CSS), JavaScript, or JSON. The original source stays unchanged. Previews support up to 2 MB and use bundled Prettier; no Node installation or API key is needed.
+
 **Insert → Image…**, image paste, and image drag-and-drop create a formatted HTML draft, leaving the original file on disk. Images are embedded as PNG data URLs. qlm-generated HTML reopens as native attributed text with inline pictures. Other HTML opens in an editable WebKit rendering. Browser editing can normalize HTML, and script-driven layouts are not guaranteed to round-trip unchanged; keep an original copy of complex pages.
 
-**View → HTML Source** switches between markup and the document. Embedded image bytes are normally shown as descriptive comments and reversible shorthand references, then restored on save. **View → Options → Don't Hide Image Bytes in HTML** reveals the complete data URLs and remembers your choice.
+**View → HTML Source** switches between markup and the document. Embedded image bytes are normally shown as descriptive comments and reversible shorthand references, then restored on save. **Format → Options → Don't Hide Image Bytes in HTML** reveals the complete data URLs and remembers your choice.
 
 Nonstandard installed TrueType/OpenType font files are embedded when supported and permitted by their embedding flags. Common system fonts use browser fallbacks. External stylesheets, CSS font shorthand, and dynamically generated font declarations are not scanned; font collections and restricted fonts may produce a save error. Font embedding does not install a font on the reader's computer. Ensure your font license permits web embedding.
 
@@ -49,7 +54,7 @@ The Font dialog and rewrite/translation actions currently operate in the native 
 
 ## Rewrite and translate
 
-Configure an HTTPS endpoint, API format, model, key, and rewrite instructions in **qlm → Settings**. Save API Setup remembers them.
+Configure an HTTPS endpoint, API format, model, key, and rewrite instructions in **qlm → Settings**. Save API Setup remembers them. **Stream responses** is enabled by default for new setups; saved opt-outs remain respected. It receives generated text incrementally but inserts only the completed result. Requests allow 10 minutes without incoming data and up to one hour overall; model token limits still apply.
 
 - **⌘R** rewrites the selected passage using your saved instructions.
 - **⌘T** offers 24 alphabetized target languages plus Other. Translations contain no language headings.
@@ -72,7 +77,7 @@ Click an image and choose **Format → Resize Image…** to set its width and he
 
 ## Export
 
-- **PDF:** native text/attributed documents print as paginated, white-background US Letter pages. Markdown prints as source. The full-page HTML editing surface does not have a dedicated rendered-PDF export path in 0.3; its native export can contain source rather than the rendered page.
+- **PDF:** native text/attributed documents print as paginated, white-background US Letter pages. Markdown prints as source. The full-page HTML editing surface does not have a dedicated rendered-PDF export path in 0.4; its native export can contain source rather than the rendered page.
 - **LaTeX PDF:** PDF export from a TEX document invokes a local **Tectonic** installation with shell escape disabled. Install it separately with `brew install tectonic`. A complete LaTeX document is required. Relative inputs resolve from its saved folder. Missing packages may require a network download. Compiler errors preserve an existing output PDF and appear in a compact dialog with a scrollable, copyable compiler log. Keep relative images and other dependencies alongside the saved TEX file; for the technical report, extract the complete [source bundle](paper/Source.zip) before compiling.
 - **PNG / JPG / TIFF:** captures the visible native app window, including the header; offscreen text is excluded. WebKit compositing and interactive embeds may not appear completely in native window captures.
 
@@ -87,9 +92,9 @@ Install Xcode command-line tools and Python 3, then:
 QLM_TEST_OUTPUT="$PWD/build" ./build/qlm.app/Contents/MacOS/qlm --self-test
 ```
 
-The build produces a universal app targeting macOS 15. Ordinary builds are ad hoc signed. Icon generation uses the locally installed San Francisco system font and Xcode 26 or later’s asset compiler for the layered macOS icon; favicon generation requires Wingdings 2 with its `penballpoint` glyph. Font binaries are not distributed in this repository. There are no Swift package dependencies. Tectonic must be installed to run the complete PDF/LaTeX test suite.
+The build produces a universal app targeting macOS 15. Ordinary builds are ad hoc signed. Icon generation uses the locally installed San Francisco system font and Xcode 26 or later’s asset compiler for the layered macOS icon; favicon generation requires Wingdings 2 with its `penballpoint` glyph. Font binaries are not distributed in this repository. There are no Swift package dependencies. The offline source preview bundles Prettier 3.10.1 (MIT); its files, license, and upstream archive checksum are in `Vendor/Prettier/`. Tectonic must be installed to run the complete PDF/LaTeX test suite.
 
-Tests cover Unicode/encoding and nine-format round-trips; defaults, margins and zoom; selected font faces and colors; large JSON preservation and size rejection; native PDF and image export; LaTeX compilation and failure handling; HTML image/font preservation, shorthand switching, editable rendering and source round-trips; and API payloads, parsers, cancellation-related controls, and undo without paid calls. These checks are regression evidence, not guarantees for every HTML page or Word document.
+Tests cover Unicode/encoding and nine-format round-trips; defaults, margins and zoom; selected font faces and colors; large JSON preservation and size rejection; native PDF and image export; LaTeX compilation and failure handling; HTML image/font preservation, shorthand switching, editable rendering and source round-trips; offline HTML/JS/JSON pretty-printing; automatic rendered HTML paste and source toggling; format indicators; and API payloads, streaming completion/truncation, parsers, cancellation-related controls, and undo without paid calls. These checks are regression evidence, not guarantees for every HTML page or Word document.
 
 For your own signed distribution:
 

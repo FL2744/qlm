@@ -13,6 +13,8 @@ swift -module-cache-path build/module-cache tools/Favicon.swift build/qlm.app/Co
 mkdir -p build/native-icon
 xcrun actool Assets/qlm.icon --compile build/native-icon --platform macosx --minimum-deployment-target 15.0 --app-icon qlm --output-partial-info-plist build/native-icon/Info.plist --output-format human-readable-text > build/native-icon/compile.log
 cp build/native-icon/Assets.car build/native-icon/qlm.icns build/qlm.app/Contents/Resources/
+mkdir -p build/qlm.app/Contents/Resources/Prettier
+cp Vendor/Prettier/* build/qlm.app/Contents/Resources/Prettier/
 python3 tools/bundle.py
 codesign --force --deep --sign - build/qlm.app
 printf 'Built %s/build/qlm.app\n' "$PWD"

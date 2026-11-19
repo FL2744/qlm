@@ -94,6 +94,13 @@ func runSelfTests() throws {
     editor.actualSize(nil)
     let formatMenu = NSApp.mainMenu?.item(withTitle: "Format")?.submenu
     try check(formatMenu?.item(withTitle: "Options")?.submenu?.items.filter { $0.action == #selector(EditorController.directionNatural(_:)) || $0.action == #selector(EditorController.directionRTL(_:)) || $0.action == #selector(EditorController.directionLTR(_:)) }.count == 3 && formatMenu?.item(withTitle: "Writing Direction: Automatic") == nil, "Writing directions grouped in Format Options")
+    let originalFileType = editor.doc.fileType
+    for format in Format.allCases {
+        editor.doc.fileType = format.type
+        try check(editor.documentTypeLabel.stringValue == format.rawValue, "Title-bar format label updates with lowercase extension")
+    }
+    editor.doc.fileType = originalFileType
+    try check(editor.documentTypeAccessory.layoutAttribute == .right && editor.documentTypeLabel.textColor == NSColor(calibratedWhite: 0.6, alpha: 1), "Document type is gray in the right title-bar accessory")
     let marginSample = editor.documentContent()
     editor.text.string = String(repeating: "Words should fill this window while keeping equal margins. ", count: 400)
     for size in [NSSize(width: 680, height: 580), NSSize(width: 1100, height: 700)] {
@@ -130,6 +137,8 @@ func runSelfTests() throws {
     }
     try runHTMLAppearanceTests()
     try runHTMLSourceTests()
+    try runSourceReadabilityTests()
+    try runHTMLPasteTests()
     try runFontPickerTests()
     try runHyperlinkTests()
     try runHTMLEmbedTests()

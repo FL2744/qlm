@@ -34,6 +34,16 @@ struct AIConfiguration: Codable {
     var model: String
     var apiFormat: String
     var rewrite: String
+    var streaming: Bool = true
+    private enum CodingKeys: String, CodingKey { case endpoint, model, apiFormat, rewrite, streaming }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        endpoint = try values.decode(String.self, forKey: .endpoint)
+        model = try values.decode(String.self, forKey: .model)
+        apiFormat = try values.decode(String.self, forKey: .apiFormat)
+        rewrite = try values.decode(String.self, forKey: .rewrite)
+        streaming = try values.decodeIfPresent(Bool.self, forKey: .streaming) ?? true
+    }
     init(defaults: UserDefaults = .standard, fileURL: URL = APISettingsFile.url) {
         if let saved = try? APISettingsFile.load(from: fileURL) { self = saved.configuration; return }
         endpoint = defaults.string(forKey: "ai.endpoint") ?? "https://api.openai.com/v1/responses"
@@ -117,14 +127,15 @@ enum AIClient {
     static func request(config: AIConfiguration, key: String, text: String, instruction: String) throws -> URLRequest {
         var request = URLRequest(url: try config.validatedURL())
         guard !key.isEmpty else { throw aiError("Add your API key in qlm → Settings before using Rewrite or Translate.") }
-        request.httpMethod = "POST"; request.timeoutInterval = 120
+        request.httpMethod = "POST"; request.timeoutInterval = 600
         request.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(config.streaming ? "text/event-stream, application/json" : "application/json", forHTTPHeaderField: "Accept")
         let body: [String: Any]
         if config.apiFormat == "Chat Completions" {
-            body = ["model": config.model, "messages": [["role": "system", "content": instruction], ["role": "user", "content": text]]]
+            body = ["stream": config.streaming, "model": config.model, "messages": [["role": "system", "content": instruction], ["role": "user", "content": text]]]
         } else {
-            body = ["model": config.model, "instructions": instruction, "input": text, "store": false]
+            body = ["stream": config.streaming, "model": config.model, "instructions": instruction, "input": text, "store": false]
         }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return request
@@ -148,11 +159,28 @@ enum AIClient {
     static func generate(config: AIConfiguration, key: String, text: String, instruction: String) async throws -> String {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpShouldSetCookies = false; configuration.urlCache = nil
+        configuration.timeoutIntervalForRequest = 600
+        configuration.timeoutIntervalForResource = 3600
         let session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
-        let (data, response) = try await session.data(for: request(config: config, key: key, text: text, instruction: instruction))
+        let (bytes, response) = try await session.bytes(for: request(config: config, key: key, text: text, instruction: instruction))
         try Task.checkCancellation()
         guard let response = response as? HTTPURLResponse else { throw aiError("No HTTP response from the API.") }
+        guard (200..<300).contains(response.statusCode) else {
+            return try parse(data: Data(), status: response.statusCode, format: config.apiFormat)
+        }
+        if response.mimeType?.lowercased() == "text/event-stream" {
+            var stream = AITextStream(format: config.apiFormat)
+            for try await byte in bytes {
+                try Task.checkCancellation()
+                try stream.consume(byte)
+                if stream.completed { return try stream.result() }
+            }
+            return try stream.result()
+        }
+        // Some compatible providers return ordinary JSON even when streaming is requested.
+        var data = Data()
+        for try await byte in bytes { try Task.checkCancellation(); data.append(byte) }
         return try parse(data: data, status: response.statusCode, format: config.apiFormat)
     }
 }
@@ -162,14 +190,15 @@ let translationLanguages = ["English", "Arabic", "Chinese", "Japanese", "French"
 final class SettingsController: NSWindowController {
     static let shared = SettingsController()
     init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 700), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 600), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "qlm Settings"; window.isReleasedWhenClosed = false
         super.init(window: window)
         window.contentViewController = NSHostingController(rootView: SettingsView())
+        if let view = window.contentViewController?.view { window.setContentSize(view.fittingSize) }
         window.center()
     }
     required init?(coder: NSCoder) { fatalError() }
-    func open() { window?.appearance = NSAppearance(named: UserDefaults.standard.string(forKey: "appearance") == "dark" ? .darkAqua : .aqua); window?.contentViewController = NSHostingController(rootView: SettingsView()); showWindow(nil); window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+    func open() { window?.appearance = NSAppearance(named: UserDefaults.standard.string(forKey: "appearance") == "dark" ? .darkAqua : .aqua); window?.contentViewController = NSHostingController(rootView: SettingsView()); if let view = window?.contentViewController?.view { window?.setContentSize(view.fittingSize) }; showWindow(nil); window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
 }
 
 struct SettingsView: View {
@@ -177,15 +206,16 @@ struct SettingsView: View {
     @State private var model = AIConfiguration().model
     @State private var format = AIConfiguration().apiFormat
     @State private var prompt = AIConfiguration().rewrite
+    @State private var streaming = AIConfiguration().streaming
     @State private var key = ""
     @State private var keyStatus = ""
-    @State private var savedSummary = FileManager.default.fileExists(atPath: APISettingsFile.url.path) ? "Saved setup: " + AIConfiguration().summary : "No API setup saved yet."
     @State private var message = ""
     @State private var provider = APIProvider.matching(endpoint: AIConfiguration().endpoint, format: AIConfiguration().apiFormat)
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("qlm").font(.system(size: 18, weight: .black))
             Text("Rewrite & translation").font(.custom("Helvetica", size: 12)).bold()
+            Text("⌘R  Rewrite selection     ⌘T  Translate selection").foregroundStyle(.secondary)
             Text("Only the selected text is sent when you request a rewrite or translation. Usage limits and charges depend on your provider.").foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Text("Provider").frame(width: 90, alignment: .leading)
@@ -210,8 +240,6 @@ struct SettingsView: View {
             HStack { Text("Endpoint").frame(width: 90, alignment: .leading); TextField("https://api.openai.com/v1/responses", text: $endpoint).textFieldStyle(.roundedBorder).onChange(of: endpoint) { key = ""; keyStatus = APIKeyStore.status(endpoint.trimmingCharacters(in: .whitespacesAndNewlines)); message = ""; updateProvider() } }
             HStack { Text("Model").frame(width: 90, alignment: .leading); TextField("gpt-6-luna", text: $model).textFieldStyle(.roundedBorder) }
             HStack { Text("API key").frame(width: 90, alignment: .leading); SecureField("Leave blank to keep an existing key", text: $key).textFieldStyle(.roundedBorder) }
-            Text(keyStatus).foregroundStyle(.secondary).accessibilityLabel("Saved API key status")
-            Text("Saved in ~/.qlm-api.json (read/write for your account only). Leave the key blank to keep the saved key.").foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Text("Rewrite instructions").bold()
             TextEditor(text: $prompt).font(.custom("Helvetica", size: 12)).frame(height: 96).overlay(Rectangle().stroke(Color.secondary.opacity(0.25)))
             HStack {
@@ -221,24 +249,25 @@ struct SettingsView: View {
                     do { try APIKeyStore.write("", endpoint: endpoint.trimmingCharacters(in: .whitespacesAndNewlines)); key = ""; keyStatus = APIKeyStore.status(endpoint.trimmingCharacters(in: .whitespacesAndNewlines)); message = "Key removed." } catch { message = error.localizedDescription }
                 }
             }
-            Text(savedSummary).foregroundStyle(.secondary).lineLimit(2)
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Stream responses", isOn: $streaming).toggleStyle(.checkbox)
+                Text("Streaming can help long translations by receiving text as it is generated.").foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
                 Text(message).foregroundStyle(.secondary).lineLimit(3)
                 Spacer()
                 Button("Save API Setup") {
                     var config = AIConfiguration()
-                    config.endpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines); config.model = model.trimmingCharacters(in: .whitespacesAndNewlines); config.apiFormat = format; config.rewrite = prompt
+                    config.endpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines); config.model = model.trimmingCharacters(in: .whitespacesAndNewlines); config.apiFormat = format; config.rewrite = prompt; config.streaming = streaming
                     do {
                         try config.saveSetup(newKey: key)
                         key = ""
                         keyStatus = APIKeyStore.status(config.endpoint)
-                        savedSummary = "Saved setup: " + config.summary
                         message = "API setup saved. It will be restored when you reopen qlm."
                     } catch { message = error.localizedDescription }
                 }.keyboardShortcut(.defaultAction)
             }
-            Text("⌘R  Rewrite selection     ⌘T  Translate selection").foregroundStyle(.secondary)
-        }.font(.custom("Helvetica", size: 12)).padding(26).frame(width: 580, height: 700)
+        }.font(.custom("Helvetica", size: 12)).padding(.horizontal, 26).padding(.vertical, 14).frame(width: 580).fixedSize(horizontal: false, vertical: true)
         .onAppear { keyStatus = APIKeyStore.status(endpoint.trimmingCharacters(in: .whitespacesAndNewlines)) }
     }
     private func updateProvider() {

@@ -3,16 +3,32 @@ import AppKit
 func runAITests(editor: EditorController) throws {
     func check(_ value: Bool, _ message: String) throws { if !value { throw aiError("Test failed: " + message) } }
     try check(translationLanguages.count == 24 && translationLanguages == translationLanguages.sorted(), "FENNEC languages in alphabetical order")
-    var config = AIConfiguration(); config.endpoint = "https://api.example.test/v1/responses"; config.model = "gpt-6-luna"; config.apiFormat = "Responses"
+    var config = AIConfiguration(); config.endpoint = "https://api.example.test/v1/responses"; config.model = "gpt-6-luna"; config.apiFormat = "Responses"; config.streaming = false
     let request = try AIClient.request(config: config, key: "test-placeholder", text: "Only selected text", instruction: "Rewrite")
     let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
     try check(body["input"] as? String == "Only selected text" && body["store"] as? Bool == false && body["model"] as? String == "gpt-6-luna", "Responses payload: selected text only, no storage, exact model")
+    try check(body["stream"] as? Bool == false && request.timeoutInterval == 600, "Explicit streaming opt-out with longer inactivity timeout")
+    func streamed(_ payload: String, format: String) throws -> String {
+        var stream = AITextStream(format: format)
+        for byte in payload.utf8 { try stream.consume(byte) }
+        return try stream.result()
+    }
+    let chatStream = ": heartbeat\r\n\r\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ترجمة 🌿\"},\"finish_reason\":null}]}\r\n\r\ndata: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+    try check(try streamed(chatStream, format: "Chat Completions") == "ترجمة 🌿", "Streaming preserves Arabic and emoji across individual UTF-8 bytes")
+    for payload in ["data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n", "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n", "data: {\"type\":\"response.incomplete\"}\n\n"] {
+        do { _ = try streamed(payload, format: payload.contains("response.incomplete") ? "Responses" : "Chat Completions"); throw NSError(domain: "test", code: 0) }
+        catch let error as NSError { try check(error.domain == "qlm.AI", "Interrupted or truncated streams must not insert partial text") }
+    }
+    let completedStream = "event: response.completed\ndata: {\"type\":\"response.completed\",\n" + "data: \"response\":{\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"Complete\"}]}]}}\n\n"
+    try check(try streamed(completedStream, format: "Responses") == "Complete", "Responses completion and multiline SSE data")
     let response = Data(#"{"status":"completed","output":[{"type":"reasoning","summary":[]},{"type":"message","content":[{"type":"output_text","text":"Rewritten text"}]}]}"#.utf8)
     try check(try AIClient.parse(data: response, status: 200, format: "Responses") == "Rewritten text", "Responses extraction")
     config.apiFormat = "Chat Completions"
+    config.streaming = true
     let chat = try AIClient.request(config: config, key: "test-placeholder", text: "Selection", instruction: "Translate")
     let chatBody = try JSONSerialization.jsonObject(with: chat.httpBody!) as! [String: Any]
     try check((chatBody["messages"] as? [[String: String]])?.last?["content"] == "Selection", "Chat payload")
+    try check(chatBody["stream"] as? Bool == true, "Streaming opt-in changes request payload")
     let chatResponse = Data(#"{"choices":[{"finish_reason":"stop","message":{"content":"ترجمة"}}]}"#.utf8)
     try check(try AIClient.parse(data: chatResponse, status: 200, format: "Chat Completions") == "ترجمة", "Chat response and Arabic")
     do { _ = try AIClient.parse(data: response, status: 401, format: "Responses"); throw NSError(domain: "test", code: 0) } catch let error as NSError { try check(error.domain == "qlm.AI", "HTTP error handling") }
@@ -36,10 +52,13 @@ func runAITests(editor: EditorController) throws {
     let setupFile = setupDirectory.appendingPathComponent(".qlm-api.json")
     var setup = AIConfiguration(defaults: preferences, fileURL: setupFile)
     setup.endpoint = "https://provider.example.test/v1/chat/completions"
-    setup.model = "saved-model"; setup.apiFormat = "Chat Completions"; setup.rewrite = "Keep my voice."
+    setup.model = "saved-model"; setup.apiFormat = "Chat Completions"; setup.rewrite = "Keep my voice."; setup.streaming = true
     try setup.saveSetup(newKey: " test-key ", fileURL: setupFile)
     let reopened = AIConfiguration(defaults: preferences, fileURL: setupFile)
     try check(reopened.endpoint == setup.endpoint && reopened.model == setup.model && reopened.apiFormat == setup.apiFormat && reopened.rewrite == setup.rewrite, "API setup persists in dotfile")
+    try check(reopened.streaming, "Streaming preference persists in API setup")
+    let legacyConfig = Data(#"{"endpoint":"https://example.test","model":"test","apiFormat":"Responses","rewrite":"Rewrite"}"#.utf8)
+    try check(try JSONDecoder().decode(AIConfiguration.self, from: legacyConfig).streaming == true, "API setups without a streaming preference default to on")
     try check(try APISettingsFile.load(from: setupFile)?.keys[setup.endpoint] == "test-key", "API key saved in dotfile")
     try setup.saveSetup(newKey: "   ", fileURL: setupFile)
     try check(try APISettingsFile.load(from: setupFile)?.keys[setup.endpoint] == "test-key", "Blank field keeps saved key")
@@ -58,6 +77,21 @@ func runAITests(editor: EditorController) throws {
     RecentFiles.record(URL(fileURLWithPath: "/tmp/qlm-recent-20.txt"), in: preferences)
     let recent = RecentFiles.urls(in: preferences)
     try check(recent.count == 30 && recent.first?.lastPathComponent == "qlm-recent-20.txt" && Set(recent).count == 30, "Persistent latest 30 unique recent files")
+    let screenBounds = NSRect(x: -1440, y: 25, width: 1440, height: 875)
+    let constrained = EditorController.boundedFrame(NSRect(x: -1300, y: 0, width: 5000, height: 1200), within: screenBounds)
+    try check(constrained == screenBounds, "Oversized windows fit the usable screen, including negative monitor coordinates")
+    let frameBefore = editor.window!.frame
+    editor.text.string = "Original"
+    let noWrap = NSMutableParagraphStyle(); noWrap.lineBreakMode = .byClipping; noWrap.headIndent = 800; noWrap.tailIndent = 2000
+    editor.text.typingAttributes[.paragraphStyle] = noWrap
+    let longProse = String(repeating: "Long rewritten passage with العربية and words. ", count: 2000)
+    editor.insertGeneratedText(longProse, after: NSRange(location: 0, length: 8))
+    try check(editor.window!.frame == frameBefore, "Long AI output preserves window size")
+    let generatedStyle = editor.text.textStorage!.attribute(.paragraphStyle, at: 10, effectiveRange: nil) as! NSParagraphStyle
+    try check(generatedStyle.lineBreakMode == .byWordWrapping && generatedStyle.headIndent == 0 && generatedStyle.tailIndent == 0, "AI prose soft-wraps without inherited oversized indents")
+    try check(editor.text.string == "Original\n\n" + longProse, "Soft wrapping preserves generated paragraph characters")
+    try check(abs(editor.text.frame.width - editor.scroll.contentView.bounds.width) < 1, "Long AI output stays inside viewport")
+    editor.text.undoManager?.removeAllActions()
     let original = "Before. Original 🌿 text. After."
     editor.text.string = original
     let selected = (original as NSString).range(of: "Original 🌿 text.")

@@ -2,6 +2,8 @@ import AppKit
 import WebKit
 
 final class WritingScrollView: NSScrollView {
+    // Document contents must never impose an intrinsic width on the window.
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric) }
     var onZoom: ((CGFloat) -> Void)?
     static let mouseWheelZoomKey = "mouseWheelZoomEnabled"
     static var mouseWheelZoomEnabled: Bool { UserDefaults.standard.object(forKey: mouseWheelZoomKey) as? Bool ?? true }
@@ -109,11 +111,13 @@ final class WritingView: NSTextView {
     }
 }
 
-final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItemValidation {
+final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItemValidation, NSWindowDelegate {
     let text = WritingView(frame: .zero)
     let scroll = WritingScrollView()
     let header = NSView()
     let wordmark = NSTextField(labelWithString: "qlm")
+    let documentTypeLabel = NSTextField(labelWithString: "txt")
+    let documentTypeAccessory = NSTitlebarAccessoryViewController()
     var operationStatus = "" { didSet { text.setAccessibilityHelp(operationStatus.isEmpty ? nil : operationStatus) } }
     let appearancePicker = NSSegmentedControl(labels: ["Light", "Dark"], trackingMode: .selectOne, target: nil, action: nil)
     var aiTask: Task<Void, Never>?
@@ -125,6 +129,8 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
     var richHTMLSnapshot: NSAttributedString?
     var richHTMLSource: String?
     var htmlSourceProjection: HTMLSourceProjection?
+    var sourcePreview: SourcePreviewController?
+    var formattingSource = false
     var richUndoManager: UndoManager?
     var htmlPreview: HTMLWebView?
     var previewSource: String?
@@ -155,6 +161,8 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
         window.isRestorable = false
         window.center()
         super.init(window: window)
+        window.delegate = self
+        updateWindowLimits()
         build()
         NotificationCenter.default.addObserver(self, selector: #selector(editorWindowClosed(_:)), name: NSWindow.willCloseNotification, object: window)
         NotificationCenter.default.addObserver(self, selector: #selector(refreshImageBytes), name: .qlmImageBytes, object: nil)
@@ -166,6 +174,21 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
     func build() {
         guard let root = window?.contentView else { return }
         root.wantsLayer = true
+        let typeView = NSView(frame: NSRect(x: 0, y: 0, width: 70, height: 22))
+        documentTypeLabel.font = NSFont(name: "Helvetica", size: 12)
+        documentTypeLabel.textColor = NSColor(calibratedWhite: 0.6, alpha: 1)
+        documentTypeLabel.alignment = .right
+        documentTypeLabel.setAccessibilityLabel("Document type")
+        documentTypeLabel.translatesAutoresizingMaskIntoConstraints = false
+        typeView.addSubview(documentTypeLabel)
+        NSLayoutConstraint.activate([
+            documentTypeLabel.trailingAnchor.constraint(equalTo: typeView.trailingAnchor, constant: -16),
+            documentTypeLabel.leadingAnchor.constraint(greaterThanOrEqualTo: typeView.leadingAnchor, constant: 4),
+            documentTypeLabel.centerYAnchor.constraint(equalTo: typeView.centerYAnchor)
+        ])
+        documentTypeAccessory.view = typeView
+        documentTypeAccessory.layoutAttribute = .right
+        window?.addTitlebarAccessoryViewController(documentTypeAccessory)
         for view in [header, scroll] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
         NSLayoutConstraint.activate([
             header.topAnchor.constraint(equalTo: root.topAnchor), header.leadingAnchor.constraint(equalTo: root.leadingAnchor), header.trailingAnchor.constraint(equalTo: root.trailingAnchor), header.heightAnchor.constraint(equalToConstant: 48),
@@ -207,7 +230,7 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
         text.setAccessibilityLabel("Writing area")
         text.zoomIn = { [weak self] in self?.changeZoom(0.1) }
         text.zoomOut = { [weak self] in self?.changeZoom(-0.1) }
-        text.pasteHTML = { [weak self] in self?.pasteEmbed(from: $0) ?? false }
+        text.pasteHTML = { [weak self] in self?.pasteHTMLContent(from: $0) ?? false }
         text.pasteImages = { [weak self] in self?.insertImages(from: $0) ?? false }
         text.registerForDraggedTypes([.png, .tiff, .fileURL])
         scroll.documentView = text
@@ -289,13 +312,35 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
         updateStatus()
     }
     func textViewDidChangeSelection(_ notification: Notification) { updateStatus(); if fontPicker?.window?.isVisible == true { fontPicker?.refresh() } }
+    func updateDocumentType() {
+        guard let document = document as? QLMDocument else { return }
+        documentTypeLabel.stringValue = document.format.rawValue
+    }
     func updateStatus() {
+        updateDocumentType()
         if !aiBusy && !exportingLaTeX { operationStatus = "" }
     }
     override func synchronizeWindowTitleWithDocumentName() {
+        updateDocumentType()
         window?.title = "qlm"
         window?.titleVisibility = .hidden
         window?.representedURL = nil
+    }
+    static func boundedFrame(_ frame: NSRect, within screen: NSRect) -> NSRect {
+        let size = NSSize(width: min(frame.width, screen.width), height: min(frame.height, screen.height))
+        return NSRect(x: min(max(frame.minX, screen.minX), screen.maxX - size.width),
+                      y: min(max(frame.minY, screen.minY), screen.maxY - size.height),
+                      width: size.width, height: size.height)
+    }
+    func updateWindowLimits() {
+        guard let window, let screen = window.screen ?? NSScreen.main else { return }
+        window.maxSize = screen.visibleFrame.size
+    }
+    func windowDidChangeScreen(_ notification: Notification) { updateWindowLimits() }
+    func windowDidChangeScreenProfile(_ notification: Notification) { updateWindowLimits() }
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        guard !sender.styleMask.contains(.fullScreen), let screen = sender.screen else { return frameSize }
+        return NSSize(width: min(frameSize.width, screen.visibleFrame.width), height: min(frameSize.height, screen.visibleFrame.height))
     }
     @objc func resized() { updateContainer() }
     func updateContainer() {
@@ -312,6 +357,7 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
         let available = max(1, viewport.width - 2 * inset.width)
         let width = wrap ? min(pageWidth, available) : available
         text.isHorizontallyResizable = false
+        text.maxSize = NSSize(width: viewport.width, height: CGFloat.greatestFiniteMagnitude)
         container.widthTracksTextView = false
         container.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         text.setFrameSize(NSSize(width: viewport.width, height: max(text.frame.height, viewport.height)))
@@ -456,6 +502,7 @@ final class EditorController: NSWindowController, NSTextViewDelegate, NSMenuItem
         guard operation.run() else { throw CocoaError(.fileWriteUnknown) }
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(prettyPrintSource(_:)) { return !formattingSource && [.html, .js, .json].contains(doc.format) }
         if menuItem.action == #selector(toggleImageBytes(_:)) { menuItem.state = Self.showImageBytes ? .on : .off; return true }
         if menuItem.action == #selector(toggleDarkHTMLSave(_:)) { menuItem.state = HTMLPage.darkSavesEnabled() ? .on : .off; return true }
         if menuItem.action == #selector(toggleMouseWheelZoom(_:)) { menuItem.state = WritingScrollView.mouseWheelZoomEnabled ? .on : .off; return true }

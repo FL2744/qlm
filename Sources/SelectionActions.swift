@@ -86,7 +86,19 @@ extension EditorController {
         let suffix = (text.string as NSString).substring(from: location)
         let insertion = "\n\n" + result + (suffix.isEmpty || suffix.hasPrefix("\n") || suffix.hasPrefix("\r") ? "" : "\n\n")
         // NSTextView's insertion pipeline provides a single undo operation and preserves the original.
-        text.insertText(insertion, replacementRange: NSRange(location: location, length: 0))
+        let originalFrame = window?.frame
+        // Imported text can carry nonwrapping paragraph settings and large indents.
+        // Generated prose follows the editor margins without altering its characters.
+        var attributes = text.typingAttributes
+        let paragraph = (attributes[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byWordWrapping
+        paragraph.headIndent = 0; paragraph.firstLineHeadIndent = 0; paragraph.tailIndent = 0
+        attributes[.paragraphStyle] = paragraph
+        text.insertText(NSAttributedString(string: insertion, attributes: attributes), replacementRange: NSRange(location: location, length: 0))
+        if let window, let originalFrame, !window.styleMask.contains(.fullScreen), let screen = window.screen ?? NSScreen.main {
+            window.setFrame(Self.boundedFrame(originalFrame, within: screen.visibleFrame), display: true)
+        }
+        updateContainer()
         text.undoManager?.setActionName("Insert Generated Text")
         text.setSelectedRange(NSRange(location: location + 2, length: (result as NSString).length))
         text.scrollRangeToVisible(text.selectedRange())

@@ -1,13 +1,13 @@
 {
-  "release": "0.3",
-  "date": "2026-11-18",
+  "release": "0.4",
+  "date": "2026-11-19",
   "os": "26.6.2",
   "architecture": "arm64",
   "build": "Swift 5 language mode; macOS 15 deployment target; arm64 + x86_64",
-  "tests": "Full --self-test passed, including actual native picture pixels, retained image data/type, repair of untyped image attachments, proportional resizing, HTML dimension persistence, and native/rendered undo",
+  "tests": "Full --self-test passed, including streaming completion and truncation, offline HTML/JS/JSON formatting, rendered HTML paste and source switching, symmetric margins, long AI insertion, all nine format labels, images, printing, and LaTeX.",
   "notarization": {
+    "id": "3279df7b-039e-4804-b5e2-439371905aca",
     "message": "Processing complete",
-    "id": "4e3a2dc8-b96b-42d8-9de6-4b41a72018fa",
     "status": "Accepted"
   },
   "distribution_checks": [
@@ -16,13 +16,13 @@
     "spctl accepted: Notarized Developer ID"
   ],
   "runtime_limits": "Intel and macOS 15 not runtime-tested; no arbitrary HTML fidelity, AI quality, accessibility, or large-file benchmark claims",
-  "screenshots": "Unchanged interface surfaces captured in isolated release 0.1; see paper/FIGURES.json",
-  "bundle_build": "5",
-  "source_commit": "78e3df3db0608dcf6159425caebe536aa119e2c9",
-  "archive_sha256": "7636bd6a9e4cb0e897bb26a590ad5c0469025e5f48f040ad94f27f2c407e9dd0",
+  "screenshots": "Historical 0.1 captures retained and explicitly identified in report; 0.4 title-bar indicator checked in native window capture.",
+  "bundle_build": "18",
+  "archive_sha256": "6e7393932a88731961fbedad638cd8afd83849413ecfcb738df88ccb1fd341f6",
   "manual_checks": [
-    "Command-P opened a two-page native print dialog; Cancel preserved text; no hardware print job submitted",
-    "Command-H opened link dialog; Enter applied the destination to selected words"
+    "Pretty-print Source menu opened a read-only formatted JavaScript preview without changing the fixture source",
+    "Document type indicator inspected in generated native window capture",
+    "Compact API Settings layout inspected in native app"
   ],
   "icon": "Opaque white foreground, black background, group shadow retained, foreground translucency disabled; native Assets.car and legacy ICNS compiled with actool"
 }
