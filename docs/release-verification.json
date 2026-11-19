@@ -1,14 +1,14 @@
 {
-  "release": "0.2",
+  "release": "0.3",
   "date": "2026-11-18",
   "os": "26.6.2",
   "architecture": "arm64",
   "build": "Swift 5 language mode; macOS 15 deployment target; arm64 + x86_64",
-  "tests": "Full --self-test passed, including Letter pagination, long-line wrapping, selected hyperlinks, HTML persistence and undo, and mixed slide clipboard text",
+  "tests": "Full --self-test passed, including actual native picture pixels, retained image data/type, repair of untyped image attachments, proportional resizing, HTML dimension persistence, and native/rendered undo",
   "notarization": {
-    "id": "df472b74-ca78-43c2-833c-ad0a4a36358f",
-    "status": "Accepted",
-    "message": "Processing complete"
+    "message": "Processing complete",
+    "id": "4e3a2dc8-b96b-42d8-9de6-4b41a72018fa",
+    "status": "Accepted"
   },
   "distribution_checks": [
     "codesign --verify --deep --strict passed",
@@ -17,11 +17,12 @@
   ],
   "runtime_limits": "Intel and macOS 15 not runtime-tested; no arbitrary HTML fidelity, AI quality, accessibility, or large-file benchmark claims",
   "screenshots": "Unchanged interface surfaces captured in isolated release 0.1; see paper/FIGURES.json",
-  "bundle_build": "3",
-  "source_commit": "8cf89fd17fffda3f6d419173938c992c70861112",
-  "archive_sha256": "b28c79d4b5bae7c9544b86c4b0ea502aa18a8b255e7dd3fea079bdf866e6219c",
+  "bundle_build": "5",
+  "source_commit": "78e3df3db0608dcf6159425caebe536aa119e2c9",
+  "archive_sha256": "7636bd6a9e4cb0e897bb26a590ad5c0469025e5f48f040ad94f27f2c407e9dd0",
   "manual_checks": [
     "Command-P opened a two-page native print dialog; Cancel preserved text; no hardware print job submitted",
     "Command-H opened link dialog; Enter applied the destination to selected words"
-  ]
+  ],
+  "icon": "Opaque white foreground, black background, group shadow retained, foreground translucency disabled; native Assets.car and legacy ICNS compiled with actool"
 }
