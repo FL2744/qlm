@@ -24,5 +24,6 @@
     "Document type indicator inspected in generated native window capture",
     "Compact API Settings layout inspected in native app"
   ],
-  "icon": "Opaque white foreground, black background, group shadow retained, foreground translucency disabled; native Assets.car and legacy ICNS compiled with actool"
+  "icon": "Opaque white foreground, black background, group shadow retained, foreground translucency disabled; native Assets.car and legacy ICNS compiled with actool",
+  "source_commit": "5a97cca14e12c64430df8741fb80781d5f9635b6"
 }
