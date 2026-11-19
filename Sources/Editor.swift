@@ -29,6 +29,21 @@ final class WritingView: NSTextView {
     override func accessibilityChildren() -> [Any]? {
         (super.accessibilityChildren() ?? []) + subviews.compactMap { $0 as? HTMLWebView }
     }
+    override func mouseDown(with event: NSEvent) {
+        if let manager = layoutManager, let container = textContainer {
+            let local = convert(event.locationInWindow, from: nil)
+            let point = NSPoint(x: local.x - textContainerOrigin.x, y: local.y - textContainerOrigin.y)
+            let glyph = manager.glyphIndex(for: point, in: container)
+            if glyph < manager.numberOfGlyphs, manager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container).contains(point) {
+                let index = manager.characterIndexForGlyph(at: glyph)
+                if index < (textStorage?.length ?? 0), let image = textStorage?.attribute(.attachment, at: index, effectiveRange: nil) as? NSTextAttachment, !(image is HTMLEmbedAttachment) {
+                    window?.makeFirstResponder(self)
+                    setSelectedRange(NSRange(location: index, length: 1)); return
+                }
+            }
+        }
+        super.mouseDown(with: event)
+    }
     var sourceUndoManager: UndoManager?
     override var undoManager: UndoManager? { sourceUndoManager ?? super.undoManager }
     var pasteHTML: ((NSPasteboard) -> Bool)?

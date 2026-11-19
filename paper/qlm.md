@@ -4,11 +4,11 @@
 Modern and Classical Languages and Literatures, Virginia Tech  
 wtaggart@vt.edu
 
-Version 0.2 · November 18, 2026
+Version 0.3 · November 18, 2026
 
 ## Abstract
 
-qlm is a native macOS writing environment that integrates large-language-model rewriting and multilingual translation into an ordinary local document. Its central AI interaction is explicit and comparative: the writer selects a passage, invokes a configurable model, and receives an alternative beneath the preserved original. Command-R applies saved rewriting instructions; Command-T offers 24 default target languages and a user-defined alternative. Provider-configurable HTTPS APIs separate the writing interface from any single model service, while asynchronous requests, snapshot checks, cancellation, and undo govern how generated text enters the document. The same workspace supports multilingual native text, attributed documents, editable rendered HTML, and portable pages with embedded images and supported fonts. This report explains how AI assistance is coordinated with document state, persistence, and direct editing in release 0.2. Regression checks verify request construction, response handling, insertion, and file behavior; they do not establish linguistic quality or comparative user benefit.
+qlm is a native macOS writing environment that integrates large-language-model rewriting and multilingual translation into an ordinary local document. Its central AI interaction is explicit and comparative: the writer selects a passage, invokes a configurable model, and receives an alternative beneath the preserved original. Command-R applies saved rewriting instructions; Command-T offers 24 default target languages and a user-defined alternative. Provider-configurable HTTPS APIs separate the writing interface from any single model service, while asynchronous requests, snapshot checks, cancellation, and undo govern how generated text enters the document. The same workspace supports multilingual native text, attributed documents, editable rendered HTML, and portable pages with embedded images and supported fonts. This report explains how AI assistance is coordinated with document state, persistence, and direct editing in release 0.3. Regression checks verify request construction, response handling, insertion, and file behavior; they do not establish linguistic quality or comparative user benefit.
 
 ## Purpose and Research Context
 
@@ -52,7 +52,7 @@ Light mode uses a white background. Dark mode uses black with default text displ
 
 ## Architecture and Document Representations
 
-The application is written in Swift with AppKit for document windows and text editing, SwiftUI for API settings, and WebKit for rendered HTML. Its source has no external Swift package dependencies. The build compiles arm64 and x86_64 executables targeting macOS 15, combines them into a universal binary, generates icon resources, and constructs a standard application bundle. A command-line self-test mode exercises the same implementation used by the GUI; it is a verification surface, not a separate editor product.
+The application is written in Swift with AppKit for document windows and text editing, SwiftUI for API settings, and WebKit for rendered HTML. Its source has no external Swift package dependencies. A layered Icon Composer asset keeps white lettering opaque while retaining tile shading; Xcode 26 or later compiles it alongside a legacy icon for older macOS versions. The build compiles arm64 and x86_64 executables targeting macOS 15, combines them into a universal binary, generates icon resources, and constructs a standard application bundle. A command-line self-test mode exercises the same implementation used by the GUI; it is a verification surface, not a separate editor product.
 
 Apple's NSDocument architecture separates persistent document data from its windows and controller objects [8]. qlm follows that division: QLMDocument reads and serializes content, EditorController manages views and editing state, and QLMDocumentController maps file extensions and recent documents. An attributed string holds native text and attachments. PlainCodec preserves UTF-8 or BOM-marked UTF-16 encodings and remembers a UTF-8 BOM when present. Unsupported byte encodings produce a conversion error. Saving is explicit; the document class does not enable autosaves in place.
 
@@ -89,6 +89,8 @@ For qlm-generated rich HTML, entering Source view retains an attributed snapshot
 ### Images, fonts, and source projection
 
 Inserting, pasting, or dropping a picture creates an HTML draft and detaches the destination from the original file path. Images are converted to PNG data URLs, scaled for display, and retained inside the saved HTML. This avoids a companion image folder. Its cost is file size: base64 expands n binary bytes to 4 times the ceiling of n divided by 3 characters, before markup overhead. A single-file document can therefore be portable while still being expensive to load and inspect.
+
+Format > Resize Image changes an image's display dimensions, with proportional sizing enabled by default. Native editing recreates the attachment with a detected image type and retained data; rendered HTML replaces the selected image element with updated dimensions. Both paths support undo. Detecting the image type prevents AppKit from drawing a generic file icon, and can repair an affected untyped attachment while its image data remains intact. Tests inspect the picture pixels returned to the native text renderer as well as saved dimensions and undo behavior.
 
 Figure 3 illustrates a reversible source projection. The editor replaces recognized base64 image data URLs with document-local tokens, surrounds relevant markup with comments identifying format, dimensions, and byte size, and retains a token-to-original mapping. Expansion removes those generated comments and restores the original data before save or rendering. An unrecognized shorthand token blocks saving with an actionable error. The projection affects image data, including image favicons, but does not abbreviate every possible binary or font payload.
 
@@ -128,11 +130,11 @@ Native text and attributed documents export to paginated white-background US Let
 
 Command-H inserts a hyperlink into selected text through a URL dialog, with Enter applying the destination. Native plain-text and code documents become HTML drafts to retain links without overwriting the original file. RTF and DOCX retain attributed links, Markdown receives link syntax, HTML Source receives an anchor, and rendered HTML applies the link to a saved selection range. Native and rendered insertion support undo; HTML serialization preserves destinations on reopen. Hide qlm moves to Control-Command-H.
 
-PNG, JPEG, and TIFF export captures the visible native application window, including its header, and excludes text outside the window. Native view caching does not guarantee complete WebKit or interactive iframe compositing. Likewise, the 0.2 full-page HTML surface does not have a dedicated rendered-PDF export path: the native PDF path may print its backing source. These are material distinctions between editing a rendered page and exporting its browser appearance. RTF and DOCX rely on Apple's text converters, so advanced Word layout or tracked changes are outside the fidelity guarantees.
+PNG, JPEG, and TIFF export captures the visible native application window, including its header, and excludes text outside the window. Native view caching does not guarantee complete WebKit or interactive iframe compositing. Likewise, the 0.3 full-page HTML surface does not have a dedicated rendered-PDF export path: the native PDF path may print its backing source. These are material distinctions between editing a rendered page and exporting its browser appearance. RTF and DOCX rely on Apple's text converters, so advanced Word layout or tracked changes are outside the fidelity guarantees.
 
 A large-file incident exposed the cost of forcing full TextKit layout during document loading. qlm now checks the file size before reading and rejects files above 32 MiB, or 33,554,432 bytes, with a recovery message. For native text exceeding 250,000 UTF-16 code units, explicit layout is limited to a viewport-related region, with noncontiguous layout enabled. Smaller documents retain full explicit layout. This reduces one source of blocking but does not create a streaming or constant-memory editor. Text storage, attributed-string snapshots, long paragraphs, and DOM serialization can still consume substantial memory below the limit.
 
-The public 0.2 bundle is a universal macOS application signed with Developer ID and hardened runtime, submitted for Apple notarization, and distributed with its accepted ticket stapled. The release workflow verifies the signature, ticket, and Gatekeeper assessment, then produces a ZIP and SHA-256 checksum. Signing credentials and the notarytool profile stay outside the repository. Ordinary source builds use an ad hoc signature. There is no update checker, notification subscription, telemetry subsystem, or application server.
+The public 0.3 bundle is a universal macOS application signed with Developer ID and hardened runtime, submitted for Apple notarization, and distributed with its accepted ticket stapled. The release workflow verifies the signature, ticket, and Gatekeeper assessment, then produces a ZIP and SHA-256 checksum. Signing credentials and the notarytool profile stay outside the repository. Ordinary source builds use an ad hoc signature. There is no update checker, notification subscription, telemetry subsystem, or application server.
 
 ## Verification and Evaluation Limits
 
@@ -142,7 +144,7 @@ Verification combined the executable's self-test mode with native UI inspection.
 | --- | --- |
 | Files and layout | Nine-format Unicode round-trips; UTF-8/UTF-16 BOMs; margins; magnification; recents |
 | Typography | Selected-range changes; installed Inter faces; weight retained on resize; color; undo/redo |
-| HTML | Image/font data; shorthand expansion and visibility; source transitions; rendered input; immediate save; hyperlink persistence and undo |
+| HTML | Image/font data; shorthand expansion and visibility; source transitions; rendered input; immediate save; hyperlink persistence and undo; image resizing and rendered pixels |
 | Assistance | Payload formats; response parsing; errors; 24 languages; Unicode insertion; undo; no live paid calls |
 | Exports and limits | Native images/PDF; wrapped print pagination and dialog cancellation; LaTeX includes and references; compiler-failure preservation; JSON retention; oversize rejection |
 | Distribution | Universal binary; macOS 15 target; Developer ID signature; accepted notarization; stapling; Gatekeeper |
@@ -155,7 +157,7 @@ No controlled comparison measures learning time, writing quality, translation ac
 
 ## Conclusion
 
-qlm 0.2 places AI rewriting and multilingual translation inside a local document workflow. Explicit selections, configurable instructions and providers, preserved originals, asynchronous state checks, and undo define how model output becomes editable writing. Native text and HTML authoring extend that workflow from drafting and cross-language revision to maintaining small pages. The technical contribution lies in coordinating these surfaces and operations while making their persistence and network boundaries clear. The implementation offers a concrete platform for studying deliberate AI assistance; linguistic quality and user benefit remain questions for empirical evaluation.
+qlm 0.3 places AI rewriting and multilingual translation inside a local document workflow. Explicit selections, configurable instructions and providers, preserved originals, asynchronous state checks, and undo define how model output becomes editable writing. Native text and HTML authoring extend that workflow from drafting and cross-language revision to maintaining small pages. The technical contribution lies in coordinating these surfaces and operations while making their persistence and network boundaries clear. The implementation offers a concrete platform for studying deliberate AI assistance; linguistic quality and user benefit remain questions for empirical evaluation.
 
 ## AI Disclosure
 

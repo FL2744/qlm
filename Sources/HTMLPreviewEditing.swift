@@ -35,6 +35,14 @@ extension HTMLWebView {
           return node.textContent || '';
         }).join('\n');
       };
+      document.addEventListener('mousedown', event => {
+        window.qlmSelectedImage = event.target.tagName === 'IMG' ? event.target : null;
+        if (window.qlmSelectedImage) {
+          event.preventDefault();
+          const range = document.createRange(); range.selectNode(event.target);
+          const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+        }
+      }, true);
       window.qlmDocumentDirty = false;
       let timer;
       document.addEventListener('input', () => {

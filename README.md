@@ -4,7 +4,7 @@
 
 A small space for words. A native macOS editor for writing, plain text, and pages you can edit directly.
 
-**[Download qlm 0.2](https://github.com/FL2744/qlm/releases/tag/v0.2)** · macOS 15+ · Apple silicon and Intel
+**[Download qlm 0.3](https://github.com/FL2744/qlm/releases/tag/v0.3)** · macOS 15+ · Apple silicon and Intel
 
 Technical paper: [PDF](paper/qlm.pdf) · [LaTeX](paper/qlm.tex) · [Markdown](paper/qlm.md) · [Source bundle](paper/Source.zip)
 
@@ -14,7 +14,7 @@ qlm starts with an ordinary text document. Add a picture and it becomes a self-c
 
 ## Install
 
-Download `qlm-v0.2-macOS-universal.zip` from [Releases](https://github.com/FL2744/qlm/releases/latest), unzip it, and drag `qlm.app` to Applications. The release is Developer ID signed, notarized by Apple, and stapled. Both architectures are included in one app. Optional checksums are provided with the release.
+Download `qlm-v0.3-macOS-universal.zip` from [Releases](https://github.com/FL2744/qlm/releases/latest), unzip it, and drag `qlm.app` to Applications. The release is Developer ID signed, notarized by Apple, and stapled. Both architectures are included in one app. Optional checksums are provided with the release.
 
 The app requires **macOS 15 or later**. It has been exercised on the development Mac's macOS 26; macOS 15 and Intel hardware have not been runtime-tested. There is no automatic updater or update notification system.
 
@@ -64,13 +64,15 @@ Requests are explicit and send selected text and instructions. The client uses a
 
 Select text and use **Insert → Link… (⌘H)** to add or edit a hyperlink. Plain-text/code documents become HTML drafts so links are retained, RTF/DOCX retain their format, and Markdown uses standard link syntax. Rendered HTML supports links directly; HTML Source view inserts an anchor. **Hide qlm** uses **⌃⌘H**.
 
+Click an image and choose **Format → Resize Image…** to set its width and height. **Keep proportions** is on by default. Native and rendered HTML images retain their embedded data and saved dimensions; resizing supports Undo.
+
 ## Printing
 
 **File → Print… (⌘P)** prepares a temporary PDF with US Letter (8.5 × 11 inch) pages, then opens the standard macOS print dialog. Native text wraps to the printable page regardless of editor zoom or window width; rendered HTML uses WebKit pagination, and TEX documents use Tectonic. HTML Source view prints the visible source. Printing does not change or save the document. The dialog supports printer selection, page ranges, copies, and Save as PDF. Add printers in macOS System Settings; available USB, network, and supported Bluetooth printers are handled by macOS and their drivers.
 
 ## Export
 
-- **PDF:** native text/attributed documents print as paginated, white-background US Letter pages. Markdown prints as source. The full-page HTML editing surface does not have a dedicated rendered-PDF export path in 0.2; its native export can contain source rather than the rendered page.
+- **PDF:** native text/attributed documents print as paginated, white-background US Letter pages. Markdown prints as source. The full-page HTML editing surface does not have a dedicated rendered-PDF export path in 0.3; its native export can contain source rather than the rendered page.
 - **LaTeX PDF:** PDF export from a TEX document invokes a local **Tectonic** installation with shell escape disabled. Install it separately with `brew install tectonic`. A complete LaTeX document is required. Relative inputs resolve from its saved folder. Missing packages may require a network download. Compiler errors preserve an existing output PDF and appear in a compact dialog with a scrollable, copyable compiler log. Keep relative images and other dependencies alongside the saved TEX file; for the technical report, extract the complete [source bundle](paper/Source.zip) before compiling.
 - **PNG / JPG / TIFF:** captures the visible native app window, including the header; offscreen text is excluded. WebKit compositing and interactive embeds may not appear completely in native window captures.
 
@@ -85,7 +87,7 @@ Install Xcode command-line tools and Python 3, then:
 QLM_TEST_OUTPUT="$PWD/build" ./build/qlm.app/Contents/MacOS/qlm --self-test
 ```
 
-The build produces a universal app targeting macOS 15. Ordinary builds are ad hoc signed. Icon generation uses the locally installed San Francisco system font; favicon generation requires Wingdings 2 with its `penballpoint` glyph. Font binaries are not distributed in this repository. There are no Swift package dependencies. Tectonic must be installed to run the complete PDF/LaTeX test suite.
+The build produces a universal app targeting macOS 15. Ordinary builds are ad hoc signed. Icon generation uses the locally installed San Francisco system font and Xcode 26 or later’s asset compiler for the layered macOS icon; favicon generation requires Wingdings 2 with its `penballpoint` glyph. Font binaries are not distributed in this repository. There are no Swift package dependencies. Tectonic must be installed to run the complete PDF/LaTeX test suite.
 
 Tests cover Unicode/encoding and nine-format round-trips; defaults, margins and zoom; selected font faces and colors; large JSON preservation and size rejection; native PDF and image export; LaTeX compilation and failure handling; HTML image/font preservation, shorthand switching, editable rendering and source round-trips; and API payloads, parsers, cancellation-related controls, and undo without paid calls. These checks are regression evidence, not guarantees for every HTML page or Word document.
 

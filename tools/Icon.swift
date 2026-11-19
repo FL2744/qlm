@@ -10,8 +10,10 @@ for size in [16,32,128,256,512] {
         bitmap.size = NSSize(width: 1024, height: 1024)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
-        NSColor.black.setFill()
-        NSBezierPath(roundedRect: NSRect(x: 62, y: 62, width: 900, height: 900), xRadius: 200, yRadius: 200).fill()
+        if !CommandLine.arguments.contains("--foreground-only") {
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: NSRect(x: 62, y: 62, width: 900, height: 900), xRadius: 200, yRadius: 200).fill()
+        }
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 330, weight: .black), .foregroundColor: NSColor.white]
         let line = CTLineCreateWithAttributedString(NSAttributedString(string: "qlm", attributes: attributes))
         let bounds = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])

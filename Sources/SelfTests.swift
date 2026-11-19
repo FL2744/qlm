@@ -134,6 +134,7 @@ func runSelfTests() throws {
     try runHyperlinkTests()
     try runHTMLEmbedTests()
     try runImageTests()
+    try runImageResizeTests()
     try runAITests(editor: editor)
     editor.changeZoom(0.5)
     try check(editor.text.font?.pointSize == 12 && editor.zoom == 1.5, "Zoom must not change saved fonts")

@@ -4,7 +4,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let documents = QLMDocumentController()
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.regular)
-        if let icon = Bundle.main.url(forResource: "Wordmark", withExtension: "png") { NSApp.applicationIconImage = NSImage(contentsOf: icon) }
         UserDefaults.standard.set(false, forKey: "NSAutomaticSpellingCorrectionEnabled")
         UserDefaults.standard.set(false, forKey: "NSAutomaticTextCompletionEnabled")
         UserDefaults.standard.set(false, forKey: "NSAutomaticDashSubstitutionEnabled")
@@ -73,6 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item(insert, "HTML Embed…", #selector(EditorController.insertHTMLEmbed(_:)))
         let format = menu("Format")
         item(format, "Font…", #selector(EditorController.showFontPicker(_:)))
+        item(format, "Resize Image…", #selector(EditorController.resizeImage(_:)))
         item(format, "Make HTML", #selector(QLMDocument.makeHTML(_:)))
         item(format, "Make Plain Text…", #selector(QLMDocument.makePlainText(_:)), "t", [.command, .shift])
         format.addItem(.separator())
